@@ -1,0 +1,31 @@
+<component name="ArtifactManager">
+  <artifact type="war" build-on-make="true" name="insurrection">
+    <output-path>$PROJECT_DIR$/out/artifacts/insurrection</output-path>
+    <root id="archive" name="insurrection.war">
+      <element id="javaee-facet-resources" facet="poneyrox/web/Web" />
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="classes">
+          <element id="module-output" name="poneyrox" />
+        </element>
+        <element id="directory" name="lib">
+          <element id="library" level="project" name="commons-dbcp:commons-dbcp:1.4" />
+          <element id="library" level="project" name="javax.transaction:jta:1.1" />
+          <element id="library" level="project" name="org.hibernate:hibernate-core:5.2.10.Final" />
+          <element id="library" level="project" name="org.postgresql:postgresql:42.1.1.jre7" />
+          <element id="library" level="project" name="org.springframework:spring-aspects:4.3.8.RELEASE" />
+          <element id="library" level="project" name="org.springframework:spring-orm:4.3.8.RELEASE" />
+          <element id="library" level="project" name="org.springframework:spring-tx:4.3.8.RELEASE" />
+          <element id="library" level="project" name="org.springframework:spring-web:4.3.8.RELEASE" />
+          <element id="library" level="project" name="org.springframework:spring-webmvc:4.3.8.RELEASE" />
+          <element id="library" level="project" name="com.google.maps:google-maps-services:0.1.20" />
+          <element id="library" level="project" name="org.apache.directory.studio:org.apache.commons.io:2.4" />
+          <element id="library" level="project" name="com.fasterxml.jackson.core:jackson-core:2.9.0.pr3" />
+          <element id="library" level="project" name="com.fasterxml.jackson.core:jackson-annotations:2.9.0.pr3" />
+          <element id="library" level="project" name="com.fasterxml.jackson.core:jackson-databind:2.9.0.pr3" />
+          <element id="library" level="project" name="com.mashape.unirest:unirest-java:1.4.9" />
+          <element id="library" level="project" name="net.finmath:finmath-lib:2.4.4" />
+        </element>
+      </element>
+    </root>
+  </artifact>
+</component>
