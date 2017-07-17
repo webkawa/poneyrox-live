@@ -4,8 +4,10 @@ import com.akasoft.poneyrox.core.watch.curves.AbstractCurve;
 import com.akasoft.poneyrox.core.watch.curves.SmoothCurve;
 import com.akasoft.poneyrox.core.watch.rates.AbstractRateType;
 import com.akasoft.poneyrox.core.watch.rates.SmoothRate;
+import com.akasoft.poneyrox.exceptions.CurveException;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  *  Cellule lissée.
@@ -14,26 +16,15 @@ import java.util.Set;
 public class SmoothCell extends AbstractCell<SmoothRate> {
     /**
      *  Constructeur.
-     *  @param owner Courbe propriétaire.
      *  @param start Date de départ.
+     *  @param end Date de fin.
      *  @param source Liste des cellules utilisées pour la génération de la cellule lissée.
+     *  @throws CurveException En cas d'erreur lors de la génération de la courbe.
      */
-    public SmoothCell(SmoothCurve owner, long start, Set<RawCell> source) {
-        super(owner,
-                start,
-                SmoothCell.extractRate(AbstractRateType.BID, source),
-                SmoothCell.extractRate(AbstractRateType.ASK, source));
-    }
-
-    /**
-     *  Génère un taux lissé à partir d'une liste de cellules brutes.
-     *  @param type Type de taux.
-     *  @param source Liste de cellules brutes.
-     *                Similaires au paramètre reçu par le constructeur.
-     *  @return Taux correspondant.
-     */
-    private static SmoothRate extractRate(AbstractRateType type, Set<RawCell> source) {
-        /* TODO */
-        return null;
+    public SmoothCell(long start, long end, Set<RawCell> source) throws CurveException {
+        super(start,
+                end,
+                new SmoothRate(AbstractRateType.BID, source.stream().map(e -> e.getBid()).collect(Collectors.toSet())),
+                new SmoothRate(AbstractRateType.ASK, source.stream().map(e -> e.getAsk()).collect(Collectors.toSet())));
     }
 }

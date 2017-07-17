@@ -2,8 +2,12 @@ package com.akasoft.poneyrox.core.watch.cells;
 
 import com.akasoft.poneyrox.core.watch.curves.AbstractCurve;
 import com.akasoft.poneyrox.core.watch.rates.AbstractRate;
+import com.akasoft.poneyrox.core.watch.rates.AbstractRateType;
+import com.akasoft.poneyrox.exceptions.CurveException;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  *  Cellule.
@@ -15,39 +19,39 @@ public abstract class AbstractCell<TRate extends AbstractRate> {
      *  Date de départ.
      *  Exprimée en temps UNIX.
      */
-    private long start;
+    private final long start;
 
     /**
      *  Date intermédiaire.
      *  Point situé à mi-chemin entre la date de début et la date de fin. Exprimée en temps UNIX.
      */
-    private long middle;
+    private final long middle;
 
     /**
      *  Date de fin.
      *  Exprimée en temps UNIX.
      */
-    private long end;
+    private final long end;
 
     /**
      *  Taux de l'offre.
      */
-    private TRate bid;
+    private final TRate bid;
 
     /**
      *  Taux de la demande.
      */
-    private TRate ask;
+    private final TRate ask;
 
     /**
      *  Constructeur.
-     *  @param owner Courbe propriétaire.
      *  @param start Date de départ.
+     *  @param end Date de fin.
      */
-    protected AbstractCell(AbstractCurve owner, long start, TRate bid, TRate ask) {
+    protected AbstractCell(long start, long end, TRate bid, TRate ask) {
         this.start = start;
-        this.middle = start + (owner.getInterval() / 2);
-        this.end = start + owner.getInterval();
+        this.middle = start + ((end - start) / 2);
+        this.end = end;
         this.bid = bid;
         this.ask = ask;
     }
@@ -90,6 +94,47 @@ public abstract class AbstractCell<TRate extends AbstractRate> {
      */
     public TRate getAsk() {
         return this.ask;
+    }
+
+    /**
+     *  Retourne un taux par type.
+     *  @param type Type recherché.
+     *  @return Taux correspondant.
+     *  @throws CurveException En cas de taux invalide.
+     */
+    public TRate getRateByType(AbstractRateType type) throws CurveException {
+        switch (type) {
+            case BID:
+                return this.bid;
+            case ASK:
+                return this.ask;
+        }
+        throw new CurveException("Invalid rate type %s", type);
+    }
+
+    /**
+     *  Réalise le calcul des marges en comparaison de la cellule précédente.
+     *  @param previous Cellule précédente.
+     */
+    public void computeMargins(AbstractCell previous) {
+        this.bid.computeMargins(previous.getBid());
+        this.ask.computeMargins(previous.getAsk());
+    }
+
+    /**
+     *  Réalise le calcul des oppositions en comparaison des cellules précédentes.
+     *  @param previous Liste des cellules précédentes.
+     */
+    public void computeOppositions(List<AbstractCell> previous) {
+
+    }
+
+    /**
+     *  Réalise le calcul des courbes d'avancement en comparaison des cellules précédentes.
+     *  @param previous Liste des cellules précédentes.
+     */
+    public void computeForwards(List<AbstractCell> previous) {
+
     }
 
     /**

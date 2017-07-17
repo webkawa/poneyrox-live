@@ -1,9 +1,8 @@
 package com.akasoft.poneyrox.core.watch.cells;
 
-import com.akasoft.poneyrox.core.watch.curves.AbstractCurve;
-import com.akasoft.poneyrox.core.watch.curves.RawCurve;
 import com.akasoft.poneyrox.core.watch.rates.AbstractRateType;
 import com.akasoft.poneyrox.core.watch.rates.RawRate;
+import com.akasoft.poneyrox.exceptions.CurveException;
 
 /**
  *  Cellule brute.
@@ -12,28 +11,35 @@ import com.akasoft.poneyrox.core.watch.rates.RawRate;
 public class RawCell extends AbstractCell<RawRate> {
     /**
      *  Constructeur.
-     *  @param owner Courbe propriétaire.
      *  @param start Date de départ.
-     *  @param times Dates des taux relevés.
+     *  @param end Date de fin.
      *  @param bid Taux d'offre relevés.
      *  @param ask Taux de demande relevés.
+     *  @throws CurveException En cas d'erreur lors de la génération de la courbe.
      */
-    public RawCell(RawCurve owner, long start, long[] times, double[] bid, double[] ask) {
-        super(owner,
-                start,
-                RawCell.extractRate(AbstractRateType.BID, times, bid),
-                RawCell.extractRate(AbstractRateType.ASK, times, ask));
+    public RawCell(long start, long end, double[] bid, double[] ask) throws CurveException {
+        super(start,
+                end,
+                new RawRate(AbstractRateType.BID, bid),
+                new RawRate(AbstractRateType.ASK, ask));
     }
 
     /**
-     *  Génère un taux brut à partir d'une liste de valeurs relevées.
-     *  @param type Type de taux traité.
-     *  @param times Dates des taux relevés.
-     *  @param rates Liste des taux relevés.
-     *  @return Taux correspondant.
+     *  Constructeur empirique.
+     *  Utilisé pour la complétion des cellules manquantes.
+     *  @param start Date de départ.
+     *  @param end Date de fin.
+     *  @param minBid Offre minimum.
+     *  @param avgBid Offre moyenne.
+     *  @param maxBid Offre maximum.
+     *  @param minAsk Demande minimum.
+     *  @param avgAsk Demande moyenne.
+     *  @param maxAsk Demande maximum.
      */
-    private static RawRate extractRate(AbstractRateType type, long[] times, double[] rates) {
-        /* TODO */
-        return null;
+    public RawCell(long start, long end, double minBid, double avgBid, double maxBid, double minAsk, double avgAsk, double maxAsk) {
+        super(start,
+                end,
+                new RawRate(AbstractRateType.BID, minBid, avgBid, maxBid),
+                new RawRate(AbstractRateType.ASK, minAsk, avgAsk, maxAsk));
     }
 }
