@@ -1,68 +1,38 @@
 package com.akasoft.poneyrox.entities;
 
-import com.fasterxml.jackson.annotation.JsonView;
-
 import javax.persistence.*;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  *  Marché.
- *  Entité représentative d'un marché analysable par l'application.
+ *  Entité représentative d'un marché unitaire.
  */
 @Entity
+@NamedQueries(
+        @NamedQuery(
+                name = "Market.getByKey",
+                query = "SELECT market " +
+                        "FROM MarketEntity AS market " +
+                        "WHERE market.key = :key"
+        )
+)
 public class MarketEntity extends AbstractEntity {
     /**
-     *  Libellé du marché.
+     *  Clef d'accès au marché.
      */
-    private String label;
-
-    /**
-     *  Clef d'accès.
-     */
+    @Column(name = "market_key")
     private String key;
 
     /**
-     *  Liste des taux.
-     */
-    @OneToMany(mappedBy = "market")
-    private Set<RateEntity> rates;
-
-    /**
-     *  Retourne le libellé du marché.
-     *  @return Libellé du marché.
-     */
-    public String getLabel() {
-        return this.label;
-    }
-
-    /**
-     *  Retourne la clef d'accès au marché.
-     *  @return Clef d'accès.
+     *  Retourne la clef d'accès.
+     *  @return Clef d'accès au marché.
      */
     public String getKey() {
         return this.key;
     }
 
     /**
-     *  Retourne la liste des taux rattachés.
-     *  @return Liste des taux rattachés.
-     */
-    public Set<RateEntity> getRates() {
-        return this.rates;
-    }
-
-    /**
-     *  Définit le libellé du marché.
-     *  @param label Libellé du marché.
-     */
-    public void setLabel(String label) {
-        this.label = label;
-    }
-
-    /**
-     *  Définit la clef du marché.
-     *  @param key Clef du marché.
+     *  Définit la clef d'accès.
+     *  @param key Clef d'accès.
      */
     public void setKey(String key) {
         this.key = key;

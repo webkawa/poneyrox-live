@@ -23,7 +23,8 @@
           <element id="library" level="project" name="com.fasterxml.jackson.core:jackson-annotations:2.9.0.pr3" />
           <element id="library" level="project" name="com.fasterxml.jackson.core:jackson-databind:2.9.0.pr3" />
           <element id="library" level="project" name="com.mashape.unirest:unirest-java:1.4.9" />
-          <element id="library" level="project" name="net.finmath:finmath-lib:2.4.4" />
+          <element id="library" level="project" name="org.deeplearning4j:deeplearning4j-core:0.8.0" />
+          <element id="library" level="project" name="org.apache.commons:commons-csv:1.4" />
         </element>
       </element>
     </root>

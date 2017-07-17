@@ -1,99 +1,60 @@
 package com.akasoft.poneyrox.entities;
 
-import com.akasoft.poneyrox.exceptions.CurveException;
-
-import javax.persistence.Entity;
+import javax.persistence.Column;
+import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.MappedSuperclass;
 
 /**
- *  Taux.
- *  Entité représentative d'un taux relevé à une date donnée.
+ *  Taux unitaire.
+ *  Entité descriptive d'un taux unitaire relevé dans une série.
  */
-@Entity
+@MappedSuperclass
 public class RateEntity extends AbstractEntity {
     /**
-     *  Date du relevé.
-     *  Exprimé en période UNIX.
+     *  Date d'ouverture du relevée.
+     *  Exprimée en temps UNIX.
      */
+    @Column(name = "rate_time")
     private long time;
 
     /**
-     *  Taux de l'offre.
-     */
-    private double bid;
-
-    /**
-     *  Taux de la demande.
-     */
-    private double ask;
-
-    /**
-     *  Marché de rattachement.
+     *  Relevé porteur.
      */
     @ManyToOne
-    private MarketEntity market;
+    @JoinColumn(name = "rate_chart")
+    private ChartEntity chart;
 
     /**
-     *  Retourne la date du relevé.
-     *  @return Date du relevé.
+     *  Retourne la date d'ouverture.
+     *  @return Date d'ouverture.
      */
     public long getTime() {
         return this.time;
     }
 
     /**
-     *  Retourne le taux de l'offre.
-     *  @return Taux de l'offre.
+     *  Retourne le relevé porteur.
+     *  @return Relevé porteur.
      */
-    public double getBid() {
-        return this.bid;
+    public ChartEntity getChart() {
+        return this.chart;
     }
 
     /**
-     *  Retourne le taux de la demande.
-     *  @return Taux de la demande.
-     */
-    public double getAsk() {
-        return this.ask;
-    }
-
-    /**
-     *  Retourne le marché de rattachement.
-     *  @return Marché de rattachement.
-     */
-    public MarketEntity getMarket() {
-        return this.market;
-    }
-
-    /**
-     *  Affecte la date du relevé.
-     *  @param time Date du relevé.
+     *  Définit la date d'ouverture.
+     *  @param time Date d'ouverture.
      */
     public void setTime(long time) {
         this.time = time;
     }
 
     /**
-     *  Affecte le taux de la demande.
-     *  @param bid Taux de la demande.
+     *  Définit le relevé porteur.
+     *  @param chart Relevé porteur.
      */
-    public void setBid(double bid) {
-        this.bid = bid;
+    public void setChart(ChartEntity chart) {
+        this.chart = chart;
     }
 
-    /**
-     *  Affecte le taux de l'offre.
-     *  @param ask Taux de l'offre.
-     */
-    public void setAsk(double ask) {
-        this.ask = ask;
-    }
-
-    /**
-     *  Affecte le marché de rattachement.
-     *  @param market Marché de rattachement.
-     */
-    public void setMarket(MarketEntity market) {
-        this.market = market;
-    }
 }

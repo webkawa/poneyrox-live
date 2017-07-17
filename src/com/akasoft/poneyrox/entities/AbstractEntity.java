@@ -8,10 +8,10 @@ import java.util.UUID;
 
 /**
  *  Entité.
- *  Classe abstraite représentative d'une entité générique mémorisée dans la base.
+ *  Classe abstraite représentative d'une entité enregistrée dans la base.
  */
 @MappedSuperclass
-public class AbstractEntity {
+public abstract class AbstractEntity {
     /**
      *  Identifiant.
      */
@@ -20,7 +20,7 @@ public class AbstractEntity {
     private UUID id;
 
     /**
-     *  Retourne l'identifiant de l'entité.
+     *  Retourne l'identifiant.
      *  @return Identifiant de l'entité.
      */
     public UUID getId() {
