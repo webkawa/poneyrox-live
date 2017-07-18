@@ -25,6 +25,7 @@
           <element id="library" level="project" name="com.mashape.unirest:unirest-java:1.4.9" />
           <element id="library" level="project" name="org.deeplearning4j:deeplearning4j-core:0.8.0" />
           <element id="library" level="project" name="org.apache.commons:commons-csv:1.4" />
+          <element id="library" level="project" name="eu.verdelhan:ta4j:0.8" />
         </element>
       </element>
     </root>

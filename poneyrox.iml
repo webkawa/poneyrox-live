@@ -54,5 +54,6 @@
     <orderEntry type="library" name="com.mashape.unirest:unirest-java:1.4.9" level="project" />
     <orderEntry type="library" name="org.deeplearning4j:deeplearning4j-core:0.8.0" level="project" />
     <orderEntry type="library" name="org.apache.commons:commons-csv:1.4" level="project" />
+    <orderEntry type="library" name="eu.verdelhan:ta4j:0.8" level="project" />
   </component>
 </module>

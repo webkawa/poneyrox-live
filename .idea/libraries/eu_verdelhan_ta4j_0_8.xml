@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="eu.verdelhan:ta4j:0.8" type="repository">
+    <properties maven-id="eu.verdelhan:ta4j:0.8" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/ta4j-0.8.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/joda-time-2.3.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-api-1.7.7.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$PROJECT_DIR$/lib/ta4j-0.8-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>
