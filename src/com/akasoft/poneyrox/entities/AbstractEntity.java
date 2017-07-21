@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  *  Entité.
- *  Classe abstraite représentative d'une entité enregistrée dans la base.
+ *  Classe abstraite représentative d'une entité persistente.
  */
 @MappedSuperclass
 public abstract class AbstractEntity {

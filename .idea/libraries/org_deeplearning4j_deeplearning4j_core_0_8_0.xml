@@ -91,6 +91,9 @@
     <JAVADOC>
       <root url="jar://$PROJECT_DIR$/lib/deeplearning4j-core-0.8.0-javadoc.jar!/" />
     </JAVADOC>
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ideaLibSources/deeplearning4j-nn-0.8.0-sources.jar!/" />
+      <root url="jar://$USER_HOME$/.ideaLibSources/nd4j-api-0.8.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

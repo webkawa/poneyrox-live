@@ -26,6 +26,7 @@
           <element id="library" level="project" name="org.deeplearning4j:deeplearning4j-core:0.8.0" />
           <element id="library" level="project" name="org.apache.commons:commons-csv:1.4" />
           <element id="library" level="project" name="eu.verdelhan:ta4j:0.8" />
+          <element id="library" level="project" name="org.nd4j:nd4j-native-platform:0.8.0" />
         </element>
       </element>
     </root>
