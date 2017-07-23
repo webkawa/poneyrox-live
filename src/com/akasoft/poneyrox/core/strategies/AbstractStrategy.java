@@ -2,10 +2,12 @@ package com.akasoft.poneyrox.core.strategies;
 
 import com.akasoft.poneyrox.core.projections.AbstractProjection;
 import com.akasoft.poneyrox.core.projections.ClosePriceProjection;
+import com.akasoft.poneyrox.core.projections.PriceVariationProjection;
 import eu.verdelhan.ta4j.Decimal;
 import eu.verdelhan.ta4j.Indicator;
 import eu.verdelhan.ta4j.TimeSeries;
 import org.hibernate.criterion.Projection;
+import org.hibernate.result.Output;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
@@ -13,11 +15,14 @@ import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.factory.Nd4j;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
  *  Stratégie unitaire.
+ *  Implémente l'interface "DataSetIterator" descriptive d'une classe permettant dans une liste de mini-lots
+ *  exploitables
  */
 public abstract class AbstractStrategy implements DataSetIterator {
     /**
@@ -27,7 +32,6 @@ public abstract class AbstractStrategy implements DataSetIterator {
 
     /**
      *  Liste des indicateurs d'entrée.
-     *  Utilisée en variable d'entrée de la machine.
      */
     private final List<Indicator<Decimal>> inputs;
 
@@ -38,47 +42,189 @@ public abstract class AbstractStrategy implements DataSetIterator {
 
     /**
      *  Taille des mini-lots.
+     *  Nombre total de taux exploités dans chaque mini-lot retourné par l'itérateur.
      */
-    private int miniBatchSize;
+    private final int minibatchSize;
 
     /**
-     *  Position du curseur.
+     *  Marge des mini-lots.
+     *  Nombre de périodes évaluées pour chaque exemple compris dans un mini-lot.
+     */
+    private final int minibatchPadding;
+
+    /**
+     *  Mix.
+     *  Liste aléatoire des relevés pris en compte dans les mini-lots.
+     */
+    private final List<Integer> shuffle;
+
+    /**
+     *  Curseur.
+     *  Position courante du curseur dans la liste des mini-lots.
      */
     private int cursor;
 
     /**
      *  Constructeur.
-     *  @param series Série étudiée.
+     *  @param series Série évaluée.
      */
     public AbstractStrategy(TimeSeries series) {
         this.series = series;
         this.inputs = new ArrayList<>();
         this.outputs = new ArrayList<>();
-        this.miniBatchSize = 128;
-        this.cursor = 0;
+        this.minibatchSize = 32;
+        this.minibatchPadding = 8;
+        this.shuffle = new ArrayList<>();
+        this.reset();
     }
 
     /**
-     *  Retourne la série étudiée.
+     *  Retourne la série évaluée.
+     *  @return Série évaluée.
      */
     public TimeSeries getSeries() {
         return this.series;
     }
 
     /**
-     *  Retourne la liste des indicateurs.
-     *  @return Liste des indicateurs.
+     *  Retourne la taille des mini-lots.
+     *  @return Taille des mini-lots.
      */
-    public List<Indicator<Decimal>> getInputs() {
-        return this.inputs;
+    public int getMinibatchSize() {
+        return this.minibatchSize;
     }
 
     /**
-     *  Retourne la liste des mini-lots.
-     *  @return Liste des mini-lots.
+     *  Retourne la marge des mini-lots.
+     *  @return Marge des mini-lots.
      */
-    public int getMiniBatchSize() {
-        return this.miniBatchSize;
+    public int getMinibatchPadding() {
+        return this.minibatchPadding;
+    }
+
+    /**
+     *  Retourne la profondeur maximale des projections référencées dans la stratégie.
+     *  @return Profondeur maximale.
+     */
+    public int getMinibatchDeepth() {
+        int result = 0;
+        for (AbstractProjection projection : this.outputs) {
+            if (projection.getDeepth() > result) {
+                result = projection.getDeepth();
+            }
+        }
+        return result;
+    }
+
+    /**
+     *  Retourne le nombre total de mini-lots disponibles dans l'itérateur.
+     *  @return Nombre de mini-lots.
+     */
+    public int getMinibatchCount() {
+        return (int) Math.floor(this.getExploitableTicks() / this.minibatchSize);
+    }
+
+    /**
+     *  Retourne le nombre de relevé exploitables dans la série.
+     *  @return Nombre de relevés exploitables.
+     */
+    public int getExploitableTicks() {
+        return this.series.getTickCount() - this.minibatchPadding - this.getMinibatchDeepth();
+    }
+
+    /**
+     *  Ajoute une projection sur le prix de sortie.
+     *  @param deepth Profondeur de la projection.
+     */
+    public void addClosePriceProjection(int deepth) {
+
+        this.addOutput(new ClosePriceProjection(deepth, this.series));
+    }
+
+    /**
+     *  Ajoute une projection sur la variation du prix.
+     *  @param deepth Profondeur de la projection.
+     */
+    public void addPriceVariationProjection(int deepth) {
+        this.addOutput(new PriceVariationProjection(deepth, this.series));
+    }
+
+    /**
+     *  Indique si l'itérateur contient des données exploitables.
+     *  @return true si l'itérateur contient des données exploitables.
+     */
+    @Override
+    public boolean hasNext() {
+        return this.cursor < this.getExploitableTicks();
+    }
+
+    /**
+     *  Retourne le prochain mini-lot disponible dans l'itérateur.
+     *  @return Prochain mini-lot.
+     */
+    @Override
+    public DataSet next() {
+        return this.next(this.minibatchSize);
+    }
+
+    /**
+     *  Retourne un mini-lot de données contenant un nombre d'échantillons passé en paramètre.
+     *  @param size Nombre d'échantillons retenus.
+     *  @return Mini-lot pret à l'utilisation.
+     */
+    @Override
+    public DataSet next(int size) {
+        /* Mix */
+        if (this.shuffle.size() == 0) {
+            for (int i = this.minibatchPadding; i < this.minibatchPadding + this.getExploitableTicks(); i++) {
+                this.shuffle.add(i);
+            }
+            Collections.shuffle(this.shuffle);
+        }
+
+        /* Calcul de la taille réelle du lot */
+        int realSize = Math.min(size, this.getExploitableTicks() - this.cursor);
+
+        /* Création des tableaux de retour */
+        INDArray input = Nd4j.create(new int[] {realSize, this.inputColumns(), this.minibatchPadding}, 'f');
+        INDArray output = Nd4j.create(new int[] {realSize, this.totalOutcomes(), this.minibatchPadding}, 'f');
+
+        /* Parcours */
+        for (int i = 0; i < realSize; i++) {
+            /* Récupération du pointeur */
+            int pointer = this.shuffle.get(this.cursor - this.minibatchPadding);
+
+            /* Entrées */
+            for (int j = 0; j < this.inputColumns(); j++) {
+                for (int k = 0; k < this.minibatchPadding; k++) {
+                    /* Calcul de la valeur injectée */
+                    double value = Math.tanh(this.inputs.get(j).getValue(pointer - (this.minibatchPadding - k)).toDouble());
+
+                    /* Ajout */
+                    input.putScalar(new int[] {i, j, k}, value);
+                }
+            }
+
+            /* Sorties */
+            for (int j = 0; j < this.totalOutcomes(); j++) {
+                for (int k = 0; k < this.minibatchPadding; k++) {
+                    /* Récupération de la projection */
+                    AbstractProjection projection = this.outputs.get(j);
+
+                    /* Calcul de la valeur injectée */
+                    double value = Math.tanh(projection.getIndicator().getValue(pointer - (this.minibatchPadding - k) + projection.getDeepth()).toDouble());
+
+                    /* Ajout */
+                    output.putScalar(new int[] {i, j, k}, value);
+                }
+            }
+
+            /* Mise à jour du curseur */
+            this.cursor++;
+        }
+
+        /* Renvoi */
+        return new DataSet(input, output);
     }
 
     /**
@@ -100,187 +246,57 @@ public abstract class AbstractStrategy implements DataSetIterator {
     }
 
     /**
-     *  Définit la taille des mini-lots.
-     *  @param miniBatchSize Taille des mini-lots.
-     */
-    public void setMiniBatchSize(int miniBatchSize) {
-        this.miniBatchSize = miniBatchSize;
-    }
-
-    /**
-     *  Ajoute une projection sur le prix de sortie.
-     *  @param deepth Profondeur de la projection.
-     */
-    public void addClosePriceProjection(int deepth) {
-        this.outputs.add(new ClosePriceProjection(deepth, this.series));
-    }
-
-    /**
      *  Définit le pré-processeur.
-     * @param dataSetPreProcessor Valeur affectée.
+     *  @param preProcessor Pré-processeur.
      */
     @Override
-    public void setPreProcessor(DataSetPreProcessor dataSetPreProcessor) {
+    public void setPreProcessor(DataSetPreProcessor preProcessor) {
         throw new UnsupportedOperationException("Not implemented");
     }
 
     /**
-     *  Indique si la stratégie contient un mini-lot supplémentaire.
-     *  @return true si la stratégie contient un mini-lot supplémentaire.
-     */
-    @Override
-    public boolean hasNext() {
-        return this.series.getTickCount() - cursor > this.miniBatchSize;
-    }
-
-    /**
-     *  Retourne le mini-lot suivant.
-     *  @return Mini-lot suivant.
-     */
-    @Override
-    public DataSet next() {
-        return this.next(this.miniBatchSize);
-    }
-
-    /**
-     *  Génère et retourne un lot de taille fixe.
-     *  @param size Taille du lot.
-     *  @return Lot correspondant.
-     */
-    @Override
-    public DataSet next(int size) {
-        /* Préparation des données */
-        double[][] inputRaw = new double[this.miniBatchSize][];
-        double[][] inputMask = new double[this.miniBatchSize][];
-        double[][] outputRaw = new double[this.miniBatchSize][];
-        double[][] outputMask = new double[this.miniBatchSize][];
-        int fullsize  = this.inputs.size() + this.outputs.size();
-
-        /* Parcours */
-        for (int idx = 0, i = this.cursor; i < this.cursor + this.miniBatchSize; idx++, i++) {
-            /* Gestion des entrées
-               TODO : supprimer les entrées non-pertinentes */
-            double[] inputRawBuff = new double[fullsize];
-            double[] inputMaskBuff = new double[fullsize];
-            for (int j = 0; j < this.inputs.size(); j++) {
-                inputRawBuff[j] = this.inputs.get(j).getValue(i).toDouble();
-                inputMaskBuff[j] = 1;
-            }
-            for (int j = this.inputs.size(); j < fullsize; j++) {
-                inputRawBuff[j] = 0;
-                inputMaskBuff[j] = 0;
-            }
-            inputRaw[idx] = inputRawBuff;
-            inputMask[idx] = inputMaskBuff;
-
-            /* Gestion des sorties */
-            double[] outputRawBuff = new double[fullsize];
-            double[] outputMaskBuff = new double[fullsize];
-            for (int j = 0; j < this.inputs.size(); j++) {
-                outputRawBuff[j] = 0;
-                outputMaskBuff[j] = 0;
-            }
-            for (int j = 0, k = this.inputs.size(); j < this.outputs.size(); j++, k++) {
-                AbstractProjection projection = this.outputs.get(j);
-                if (i < this.miniBatchSize - projection.getDeepth()) {
-                    outputRawBuff[k] = projection.getIndicator().getValue(i + projection.getDeepth()).toDouble();
-                    outputMaskBuff[k] = 1;
-                } else {
-                    outputRawBuff[k] = 0;
-                    outputMaskBuff[k] = 0;
-                }
-            }
-            outputRaw[idx] = outputRawBuff;
-            outputMask[idx] = outputMaskBuff;
-        }
-        this.cursor += this.miniBatchSize;
-
-        /* Renvoi */
-        INDArray inputRawArray = Nd4j.create(inputRaw);
-        INDArray outputRawArray = Nd4j.create(outputRaw);
-        INDArray inputMaskArray = Nd4j.create(inputMask);
-        INDArray outputMaskArray = Nd4j.create(outputMask);
-        return new DataSet(
-                inputRawArray,
-                outputRawArray);
-        /*
-        return new DataSet(
-                inputRawArray,
-                outputRawArray,
-                inputMaskArray,
-                outputMaskArray);
-        */
-    }
-
-    /**
-     *  Indique si l'itérateur peut etre redémarré.
-     *  @return true si l'itérateur peut etre redémarré.
-     */
-    @Override
-    public boolean resetSupported() {
-        return true;
-    }
-
-    /**
-     *  Redémarre l'itérateur.
-     */
-    @Override
-    public void reset() {
-        this.cursor = 0;
-    }
-
-    /**
-     *  Retourne le nombre de mini-lots disponibles.
-     *  @return Nombre de mini-lots disponibles.
+     *  Retourne le nombre total d'exemples disponibles dans l'itérateur.
+     *  @return Nombre d'exemples disponibles.
      */
     @Override
     public int totalExamples() {
-        return (int) Math.floor(this.series.getTickCount() / this.miniBatchSize);
+        return this.getMinibatchCount();
     }
 
     /**
-     *  Retourne le nombre d'exemples.
-     *  @return Nombre d'exemples.
+     *  Retourne le nombre total d'exemples disponibles dans l'itérateur.
+     *  Curieusement identique à "totalExamples()"...
+     *  @return Nombre d'exemples disponibles.
      */
-    @Override
     public int numExamples() {
-        return this.totalExamples();
+        return this.getMinibatchCount();
     }
 
     /**
-     *  Retourne le nombre de colonnes d'entrée.
-     *  @return Nombre de colonnes d'entrée.
+     *  Retourne le nombre de colonnes en entrée.
+     *  @return Nombre de colonnes en entrée.
      */
     @Override
     public int inputColumns() {
-        return this.inputs.size() + this.outputs.size();
+        return this.inputs.size();
     }
 
     /**
-     *  Retourne le nombre de colonnes de sortie.
-     *  @return Nombre de colonnes de sortie.
+     *  Retourne le nombre de colonnes en sortie.
+     *  @return Nombre de colonnes en sortie.
      */
     @Override
     public int totalOutcomes() {
-        return this.inputs.size() + this.outputs.size();
+        return this.outputs.size();
     }
 
     /**
-     *  Indique si le chargement peut avoir lieu de manière asynchrone.
-     *  @return true si le chargement peut avoir lieu en asynchrone.
-     */
-    @Override
-    public boolean asyncSupported() {
-        return true;
-    }
-
-    /**
-     *  Retourne la taille des lots.
-     *  @return Taille des lots.
+     *  Retourne la taille des mini-lots.
+     *  @return Taille des mini-lots.
      */
     @Override
     public int batch() {
-        return this.miniBatchSize;
+        return this.minibatchSize;
     }
 
     /**
@@ -293,10 +309,47 @@ public abstract class AbstractStrategy implements DataSetIterator {
     }
 
     /**
+     *  Indique si l'itérateur supporte les traitements asynchrones.
+     *  @return true si le pré-processeur supporte les traitements asynchrones.
+     */
+    @Override
+    public boolean asyncSupported() {
+        return true;
+    }
+
+    /**
+     *  Indique si la réinitialisation du curseur est supportée.
+     *  @return true si la réinitialisation est supportée, false sinon.
+     */
+    @Override
+    public boolean resetSupported() {
+        return true;
+    }
+
+    /**
+     *  Réinitialise le curseur.
+     */
+    @Override
+    public void reset() {
+        this.cursor = this.minibatchPadding;
+        this.shuffle.clear();
+    }
+
+    /**
      *  Ajoute un indicateur d'entrée à la liste.
      *  @param input Indicateur ajouté.
      */
     protected void addInput(Indicator<Decimal> input) {
         this.inputs.add(input);
+        this.shuffle.clear();
+    }
+
+    /**
+     *  Ajoute une projection à la liste.
+     *  @param output Projection ajoutée.
+     */
+    protected void addOutput(AbstractProjection output) {
+        this.outputs.add(output);
+        this.shuffle.clear();
     }
 }

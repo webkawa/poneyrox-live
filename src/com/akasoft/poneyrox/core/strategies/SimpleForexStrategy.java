@@ -40,8 +40,11 @@ public class SimpleForexStrategy extends AbstractStrategy {
         BollingerBandsMiddleIndicator bollingerMiddle = new BollingerBandsMiddleIndicator(bollingerSMA);
         BollingerBandsLowerIndicator bollingerLower = new BollingerBandsLowerIndicator(bollingerMiddle, bollingerSD);
         BollingerBandsUpperIndicator bollingerUpper = new BollingerBandsUpperIndicator(bollingerMiddle, bollingerSD);
-        BollingerBandWidthIndicator bollinger = new BollingerBandWidthIndicator(bollingerUpper, bollingerMiddle, bollingerLower);
-        super.addInput(bollinger);
+        BollingerBandWidthIndicator bollingerIndicator = new BollingerBandWidthIndicator(bollingerUpper, bollingerMiddle, bollingerLower);
+        super.addInput(bollingerMiddle);
+        super.addInput(bollingerLower);
+        super.addInput(bollingerUpper);
+        super.addInput(bollingerIndicator);
 
         /* Gestion du MACD
          * Voir : http://www.investopedia.com/terms/m/macd.asp */

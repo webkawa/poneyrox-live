@@ -1,7 +1,7 @@
 <component name="ArtifactManager">
-  <artifact type="war" build-on-make="true" name="insurrection">
-    <output-path>$PROJECT_DIR$/out/artifacts/insurrection</output-path>
-    <root id="archive" name="insurrection.war">
+  <artifact type="war" build-on-make="true" name="poneyrox">
+    <output-path>$PROJECT_DIR$/out/artifacts/poneyrox</output-path>
+    <root id="archive" name="poneyrox.war">
       <element id="javaee-facet-resources" facet="poneyrox/web/Web" />
       <element id="directory" name="WEB-INF">
         <element id="directory" name="classes">

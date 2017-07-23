@@ -12,6 +12,7 @@ public class ClosePriceProjection extends AbstractProjection {
     /**
      *  Constructeur.
      *  @param deepth Profondeur de la projection.
+     *  @param series Série évaluée.
      */
     public ClosePriceProjection(int deepth, TimeSeries series) {
         super(deepth, new ClosePriceIndicator(series));
