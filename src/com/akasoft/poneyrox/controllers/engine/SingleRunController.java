@@ -7,6 +7,7 @@ import eu.verdelhan.ta4j.Indicator;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.eval.Evaluation;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.Updater;
@@ -40,29 +41,29 @@ public class SingleRunController {
      */
     public void execute(AbstractStrategy strategy) {
         /* Calcul du nombre d'éléments par entrée */
-        int size = strategy.inputColumns() * strategy.getMinibatchSize();
-        int h1 = (int) Math.round(size * 0.9);
-        int h2 = (int) Math.round(size * 0.8);
-        int h3 = (int) Math.round(size * 0.7);
-        int h4 = (int) Math.round(size * 0.6);
+        double size = strategy.inputColumns() * strategy.getMinibatchSize();
+        int h1 = (int) Math.round(size * 2);
+        int h2 = (int) Math.round(size * 1.6);
+        int h3 = (int) Math.round(size * 1.2);
+        int h4 = (int) Math.round(size * 0.8);
 
         /* Création de la machine */
         MultiLayerConfiguration mlc = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                .weightInit(WeightInit.XAVIER)
+                .updater(Updater.NESTEROVS)
+                .momentum(0.9)
                 .iterations(1)
-                .learningRate(0.01)
-                //.rmsDecay(0.95)
+                .learningRate(0.05)
                 .seed(1234)
                 .regularization(true)
-                .l2(0.001)
-                .weightInit(WeightInit.XAVIER)
-                .updater(Updater.RMSPROP)
+                .l2(0.0001)
                 .list()
-                .layer(0, new GravesLSTM.Builder().nIn(strategy.inputColumns()).nOut(h1).activation(Activation.TANH).build())
-                .layer(1, new GravesLSTM.Builder().nIn(h1).nOut(h2).activation(Activation.TANH).build())
-                .layer(2, new GravesLSTM.Builder().nIn(h2).nOut(h3).activation(Activation.TANH).build())
-                .layer(3, new GravesLSTM.Builder().nIn(h3).nOut(h4).activation(Activation.TANH).build())
-                .layer(4, new RnnOutputLayer.Builder(LossFunctions.LossFunction.MCXENT).activation(Activation.SOFTMAX).nIn(h4).nOut(strategy.totalOutcomes()).build())
+                .layer(0, new GravesLSTM.Builder().nIn(strategy.inputColumns()).nOut(h1).activation(Activation.RELU).build())
+                .layer(1, new GravesLSTM.Builder().nIn(h1).nOut(h2).activation(Activation.RELU).build())
+                .layer(2, new GravesLSTM.Builder().nIn(h2).nOut(h3).activation(Activation.RELU).build())
+                .layer(3, new GravesLSTM.Builder().nIn(h3).nOut(h4).activation(Activation.RELU).build())
+                .layer(4, new RnnOutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(h4).nOut(strategy.totalOutcomes()).build())
                 .pretrain(false)
                 .backprop(true)
                 .build();
@@ -71,7 +72,7 @@ public class SingleRunController {
         mln.setListeners(new ScoreIterationListener(1));
 
         /* Entrainement */
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 16; i++) {
             while(strategy.hasNext()){
                 /* Récupération du lot et division */
                 DataSet next = strategy.next();
@@ -96,6 +97,7 @@ public class SingleRunController {
                         strategy.cursor(),
                         strategy.getSeries().getTickCount());
                 System.out.println(output);
+                System.out.println(eval.stats());
             }
             strategy.reset();
         }

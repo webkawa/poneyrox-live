@@ -9,6 +9,8 @@
     <JAVADOC>
       <root url="jar://$PROJECT_DIR$/lib/ta4j-0.8-javadoc.jar!/" />
     </JAVADOC>
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ideaLibSources/ta4j-0.8-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

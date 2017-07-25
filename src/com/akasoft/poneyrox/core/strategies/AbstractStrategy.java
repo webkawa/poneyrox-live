@@ -6,18 +6,17 @@ import com.akasoft.poneyrox.core.projections.PriceVariationProjection;
 import eu.verdelhan.ta4j.Decimal;
 import eu.verdelhan.ta4j.Indicator;
 import eu.verdelhan.ta4j.TimeSeries;
-import org.hibernate.criterion.Projection;
-import org.hibernate.result.Output;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.dataset.api.preprocessor.NormalizerMinMaxScaler;
+import org.nd4j.linalg.dataset.api.preprocessor.NormalizerStandardize;
 import org.nd4j.linalg.factory.Nd4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  *  Stratégie unitaire.
@@ -33,12 +32,12 @@ public abstract class AbstractStrategy implements DataSetIterator {
     /**
      *  Liste des indicateurs d'entrée.
      */
-    private final List<Indicator<Decimal>> inputs;
+    private final List<Indicator<Decimal>> inputIndicators;
 
     /**
      *  Liste des indicateurs de sortie.
      */
-    private final List<AbstractProjection> outputs;
+    private final List<AbstractProjection> outputProjections;
 
     /**
      *  Taille des mini-lots.
@@ -53,10 +52,45 @@ public abstract class AbstractStrategy implements DataSetIterator {
     private final int minibatchPadding;
 
     /**
+     *  Point de départ du curseur.
+     */
+    private final int minibatchStart;
+
+    /**
+     *  Normaliseur de mise à l'échelle.
+     */
+    private final NormalizerMinMaxScaler normalizerMinMaxScalerInstance;
+
+    /**
+     *  Marqueur de normalisation par mise à l'échelle.
+     */
+    private boolean normalizerMinMaxScalerMarker;
+
+    /**
+     *  Normaliseur de standardisation.
+     */
+    private final NormalizerStandardize normalizerStandardizeInstance;
+
+    /**
+     *  Marqueur de normalisation par standardisation.
+     */
+    private boolean normalizerStandardizeMarker;
+
+    /**
      *  Mix.
      *  Liste aléatoire des relevés pris en compte dans les mini-lots.
      */
     private final List<Integer> shuffle;
+
+    /**
+     *  Cache des indicateurs d'entrée.
+     */
+    private final List<Double[]> inputCache;
+
+    /**
+     *  Cache des indicateurs de sortie.
+     */
+    private final List<Double[]> outputCache;
 
     /**
      *  Curseur.
@@ -70,11 +104,21 @@ public abstract class AbstractStrategy implements DataSetIterator {
      */
     public AbstractStrategy(TimeSeries series) {
         this.series = series;
-        this.inputs = new ArrayList<>();
-        this.outputs = new ArrayList<>();
+        this.inputIndicators = new ArrayList<>();
+        this.inputCache = new ArrayList<>();
+        this.outputProjections = new ArrayList<>();
+        this.outputCache = new ArrayList<>();
         this.minibatchSize = 32;
-        this.minibatchPadding = 8;
+        this.minibatchPadding = 24;
+        this.minibatchStart = this.minibatchPadding * 2;
+        this.normalizerMinMaxScalerInstance = new NormalizerMinMaxScaler();
+        this.normalizerMinMaxScalerMarker = false;
+        this.normalizerStandardizeInstance = new NormalizerStandardize();
+        this.normalizerStandardizeMarker = false;
         this.shuffle = new ArrayList<>();
+
+        this.normalizerMinMaxScalerInstance.fitLabel(false);
+        this.normalizerStandardizeInstance.fitLabel(false);
         this.reset();
     }
 
@@ -108,7 +152,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      */
     public int getMinibatchDeepth() {
         int result = 0;
-        for (AbstractProjection projection : this.outputs) {
+        for (AbstractProjection projection : this.outputProjections) {
             if (projection.getDeepth() > result) {
                 result = projection.getDeepth();
             }
@@ -129,7 +173,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      *  @return Nombre de relevés exploitables.
      */
     public int getExploitableTicks() {
-        return this.series.getTickCount() - this.minibatchPadding - this.getMinibatchDeepth();
+        return this.series.getTickCount() - this.minibatchStart - this.getMinibatchDeepth();
     }
 
     /**
@@ -147,6 +191,46 @@ public abstract class AbstractStrategy implements DataSetIterator {
      */
     public void addPriceVariationProjection(int deepth) {
         this.addOutput(new PriceVariationProjection(deepth, this.series));
+    }
+
+    /**
+     *  Réalise le placement des données dans le cache et met à niveau les statistiques
+     *  du normalisateur.
+     */
+    public void normalize() {
+        /* Cache */
+        this.inputCache.clear();
+        this.outputCache.clear();
+        for (int i = 0; i < this.series.getTickCount(); i++) {
+            /* Gestion des entrées */
+            Double[] inputBuff = new Double[this.inputIndicators.size()];
+            for (int j = 0; j < this.inputIndicators.size(); j++) {
+                inputBuff[j] = this.inputIndicators.get(j).getValue(i).toDouble();
+            }
+            this.inputCache.add(inputBuff);
+
+            /* Gestion des sorties */
+            Double[] outputBuff = new Double[this.outputProjections.size()];
+            for (int j = 0; j < this.outputProjections.size(); j++) {
+                AbstractProjection projection = this.outputProjections.get(j);
+                if (this.series.getTickCount() - projection.getDeepth() > i) {
+                    outputBuff[j] = projection.getIndicator().getValue(i + projection.getDeepth()).toDouble();
+                } else {
+                    outputBuff[j] = Double.valueOf(0);
+                }
+            }
+            this.outputCache.add(outputBuff);
+        }
+
+        /* Enrichissement du normaliseur par mise à l'échelle */
+        this.normalizerMinMaxScalerMarker = false;
+        this.normalizerMinMaxScalerInstance.fit(this);
+        this.normalizerMinMaxScalerMarker = true;
+
+        /* Enregistrement du normaliseur par standardisation */
+        this.normalizerStandardizeMarker = false;
+        this.normalizerStandardizeInstance.fit(this);
+        this.normalizerStandardizeMarker = true;
     }
 
     /**
@@ -176,7 +260,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
     public DataSet next(int size) {
         /* Mix */
         if (this.shuffle.size() == 0) {
-            for (int i = this.minibatchPadding; i < this.minibatchPadding + this.getExploitableTicks(); i++) {
+            for (int i = this.minibatchStart; i < this.minibatchStart + this.getExploitableTicks(); i++) {
                 this.shuffle.add(i);
             }
             Collections.shuffle(this.shuffle);
@@ -198,7 +282,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
             for (int j = 0; j < this.inputColumns(); j++) {
                 for (int k = 0; k < this.minibatchPadding; k++) {
                     /* Calcul de la valeur injectée */
-                    double value = Math.tanh(this.inputs.get(j).getValue(pointer - (this.minibatchPadding - k)).toDouble());
+                    double value = this.inputCache.get(pointer - (this.minibatchPadding - k))[j];
 
                     /* Ajout */
                     input.putScalar(new int[] {i, j, k}, value);
@@ -209,10 +293,10 @@ public abstract class AbstractStrategy implements DataSetIterator {
             for (int j = 0; j < this.totalOutcomes(); j++) {
                 for (int k = 0; k < this.minibatchPadding; k++) {
                     /* Récupération de la projection */
-                    AbstractProjection projection = this.outputs.get(j);
+                    AbstractProjection projection = this.outputProjections.get(j);
 
                     /* Calcul de la valeur injectée */
-                    double value = Math.tanh(projection.getIndicator().getValue(pointer - (this.minibatchPadding - k) + projection.getDeepth()).toDouble());
+                    double value = this.outputCache.get(pointer - (this.minibatchPadding - k))[j];
 
                     /* Ajout */
                     output.putScalar(new int[] {i, j, k}, value);
@@ -223,8 +307,17 @@ public abstract class AbstractStrategy implements DataSetIterator {
             this.cursor++;
         }
 
+        /* Création du lot */
+        DataSet ds = new DataSet(input, output);
+        if (this.normalizerMinMaxScalerMarker) {
+            this.normalizerMinMaxScalerInstance.preProcess(ds);
+            if (this.normalizerStandardizeMarker) {
+                this.normalizerStandardizeInstance.preProcess(ds);
+            }
+        }
+
         /* Renvoi */
-        return new DataSet(input, output);
+        return ds;
     }
 
     /**
@@ -278,7 +371,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      */
     @Override
     public int inputColumns() {
-        return this.inputs.size();
+        return this.inputIndicators.size();
     }
 
     /**
@@ -287,7 +380,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      */
     @Override
     public int totalOutcomes() {
-        return this.outputs.size();
+        return this.outputProjections.size();
     }
 
     /**
@@ -331,7 +424,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      */
     @Override
     public void reset() {
-        this.cursor = this.minibatchPadding;
+        this.cursor = this.minibatchStart;
         this.shuffle.clear();
     }
 
@@ -340,7 +433,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      *  @param input Indicateur ajouté.
      */
     protected void addInput(Indicator<Decimal> input) {
-        this.inputs.add(input);
+        this.inputIndicators.add(input);
         this.shuffle.clear();
     }
 
@@ -349,7 +442,7 @@ public abstract class AbstractStrategy implements DataSetIterator {
      *  @param output Projection ajoutée.
      */
     protected void addOutput(AbstractProjection output) {
-        this.outputs.add(output);
+        this.outputProjections.add(output);
         this.shuffle.clear();
     }
 }

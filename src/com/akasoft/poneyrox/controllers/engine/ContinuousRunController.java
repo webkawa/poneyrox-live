@@ -62,8 +62,9 @@ public class ContinuousRunController {
         /* Création de la stratégie */
         SimpleForexStrategy strategy = new SimpleForexStrategy(series);
         strategy.addPriceVariationProjection(1);
-        strategy.addPriceVariationProjection(2);
-        strategy.addPriceVariationProjection(3);
+        //strategy.addPriceVariationProjection(2);
+        //strategy.addPriceVariationProjection(3);
+        strategy.normalize();
 
         /* Lancement */
         this.singleRunController.execute(strategy);
